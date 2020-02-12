@@ -47,7 +47,7 @@ Para especificar quais pacotes ler para este teste ( @AnalyzeClasses (packages =
 ``` java
   @AnalyzeClasses(packages = "br.com.playground")
 ```
- Para declarar um teste utilizamos anotação @ArchTest e a classe ArchRule para uma regra.
+ Para declarar um teste utilizamos anotação @ArchTest e a classe ArchRule para uma regra sobre um conjuto especificado de objetos.
 
 ### Criando os Testes
 
@@ -102,3 +102,77 @@ Validar quais pacotes podem ser chamados e por qual pacote pode chamar.
             .should()
             .beFreeOfCycles();
 ```	   
+
+#### Verificar exceptions genéricas
+
+Throwable, Exception, RuntimeException
+
+``` java
+
+   @ArchTest
+    @PublicAPI(usage = ACCESS)
+    public static final ArchRule NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS = noClasses()
+            .should(THROW_GENERIC_EXCEPTIONS)
+            .as("This class cannot throw general exceptions.");
+	    
+```
+
+#### Validações personalizadas
+
+O ArchUnit, lhe da a liberdade de criar suas próprias validaçes, vamos criar uma para validar se o pacode que começa com use, tem anotaçes controller.
+
+``` java
+  private static final DescribedPredicate PACKAGE_PREDICATE = new PackagePredicate();
+    private static final ArchCondition NO_CONTROLLER_CLASS_CONDITION = new NoControllerClassCondition();
+
+
+    @ArchTest
+    public static final ArchRule O_CLASS_ANNOTATED_CONTROLLER_IN_USE_CASE =                classes().that(PACKAGE_PREDICATE).should(NO_CONTROLLER_CLASS_CONDITION);
+
+```
+
+``` java
+/*
+ * Responsavel pela regra do teste, condição para passar.
+ * */
+class NoControllerClassCondition extends ArchCondition {
+
+    public NoControllerClassCondition() {
+        super("not contain a method named foo");
+    }
+
+
+    @Override
+    public void check(Object item, ConditionEvents events) {
+        ((JavaClass) item).getAnnotations()
+                .stream()
+                .map(JavaAnnotation::getRawType)
+                .filter(c -> c.getSimpleName().equals("Controller"))
+                .forEach(c -> events
+                        .add(SimpleConditionEvent
+                                .violated(c, "class " + ((JavaClass) item).getSimpleName() + " contains a annotation controller")));
+    }
+}
+```
+
+``` java
+/*
+ *
+ * Seleciona as classes que vão ser validadas.
+ * */
+class PackagePredicate extends DescribedPredicate {
+
+    private static final String PACKAGE = "br.com.playground";
+
+    public PackagePredicate() {
+        super("resides in package " + PACKAGE);
+    }
+
+    @Override
+    public boolean apply(Object javaClass) {
+        return ((JavaClass) javaClass).getPackage().getRelativeName().startsWith("use");
+    }
+}
+
+
+```
