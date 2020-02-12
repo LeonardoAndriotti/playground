@@ -39,3 +39,66 @@ Sendo o pacote **API** o pacote de nível mais alto e responsavel por receber as
 1. O pacote APPLICATION só pode depender do pacote USECASE.
 
 1. O pacote USECASE não pode depender de nenhum pacote.
+
+
+### Conhecendo algumas anotações
+
+Para especificar quais pacotes ler para este teste ( @AnalyzeClasses (packages = {..}) 
+``` java
+  @AnalyzeClasses(packages = "br.com.playground")
+```
+ Para declarar um teste utilizamos anotação @ArchTest e a classe ArchRule para uma regra.
+
+### Criando os Testes
+
+#### Verificações de camada
+
+Validar quais pacotes podem ser chamados e por qual pacote pode chamar.
+
+``` java
+
+    @ArchTest
+    private static final ArchRule LAYER_CHECKS = layeredArchitecture()
+            .layer("API").definedBy("br.com.playground.api")
+            .layer("APPLICATION").definedBy("br.com.playground.application")
+            .layer("USECASE").definedBy("br.com.playground.usecase")
+
+            .whereLayer("API").mayNotBeAccessedByAnyLayer()
+            .whereLayer("APPLICATION").mayOnlyBeAccessedByLayers("API")
+            .whereLayer("USECASE").mayOnlyBeAccessedByLayers("APPLICATION");
+
+```
+
+#### Proibindo anotaçãoes em pacotes
+
+``` java
+    @ArchTest
+    private static final ArchRule NO_DEPRECATED_IN_USE_CASE_PACKAGE = noClasses().that()
+            .areAnnotatedWith(Deprecated.class)
+            .should()
+            .resideInAPackage("br.com.playground..")
+            .as("Deprecated annotation invalid,")
+            .because("Deprecated classes are not allowed.");
+
+    @ArchTest
+    private static final ArchRule NO_CONTROLLER_IN_USE_CASE_PACKAGE = noClasses().that()
+            .areAnnotatedWith(Controller.class)
+            .or()
+            .areAnnotatedWith(RestController.class)
+            .should()
+            .resideInAPackage("br.com.playground.usecase")
+            .andShould()
+            .resideInAPackage("br.com.playground.application")
+            .as("Controller annotations are not allowed")
+            .because("REST calls are not allowed in packages [application, usecase]");
+```
+
+#### Verificações de ciclos
+
+``` java
+    @ArchTest
+    private static final ArchRule NO_CYCLIC_DEPENDENCIES = slices()
+            .matching("com.playground.(*)..")
+            .should()
+            .beFreeOfCycles();
+```	   
