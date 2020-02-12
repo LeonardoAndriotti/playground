@@ -12,7 +12,7 @@ Projeto para implementação de novas tecnologias e ferramentas, escrito em Java
 
 Vamos utilizar o archUnit, para validar nossa arquitetura. Para garantir que com o tempo não se perga os limites colocados, estrutura de pacotes e projeto vire aquela bagunça.
 
-O archUnit é escrito em java, para testar uma estrutura java e vocÇe consegue utilizar ele com JUnit 4 e 5.
+O archUnit é escrito em java, para testar uma estrutura java e você consegue utilizar ele com JUnit 4 e 5.
 
 ###### Obs. Os exemplos serão utilizando Junit 5.
 
