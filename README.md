@@ -2,9 +2,7 @@
 
 Projeto para implementação de novas tecnologias e ferramentas, escrito em Java + Spring Boot.
 
-1.ArchUnit (https://github.com/LeonardoAndriotti/playground/blob/master/README.md#archunit)
-
-
+[1.ArchUnit](#archunit)
 
 
 
