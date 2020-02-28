@@ -174,4 +174,4 @@ class PackagePredicate extends DescribedPredicate {
 
 
 ```
-[LINK]  (https://github.com/LeonardoAndriotti/playground/blob/master/src/test/java/br/com/playground/archunit/ArchUnitTest.java)
+[GITHUB](https://github.com/LeonardoAndriotti/playground/blob/master/src/test/java/br/com/playground/archunit/ArchUnitTest.java)
