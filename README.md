@@ -176,7 +176,35 @@ class PackagePredicate extends DescribedPredicate {
 
 
 ```
-[GITHUB](https://github.com/LeonardoAndriotti/playground/blob/master/src/test/java/br/com/playground/archunit/ArchUnitTest.java)
+#### Validação em metódos
+
+``` java
+
+    @ArchTest
+    public static final ArchRule VALIDADE_TRANSACTION_READ_ONLY = methods()
+            .that()
+            .areAnnotatedWith(Transactional.class)
+            .and()
+            .haveFullNameMatching(".*(get|find|count).*")
+            .should(new CheckTransactionalReadOnlyOnMethodCondition())
+            .andShould()
+            .beDeclaredInClassesThat()
+            .resideInAPackage("com.playgroundtest.dao..");
+
+
+```
+
+#### Validações em fields
+
+``` java
+
+@ArchTest
+    public static final ArchRule NO_CLASS_ANNOTATION_WITH_AUTOWIRED = fields()
+            .should()
+            .notBeAnnotatedWith(Autowired.class);
+
+
+```
 
 ## Testes de Integração
 
