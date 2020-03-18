@@ -2,9 +2,9 @@
 
 Projeto para implementação de novas tecnologias e ferramentas, escrito em Java + Spring Boot.
 
-[1.ArchUnit](#archunit)
+[1. ArchUnit](#archunit)
 
-[1.Testes de Integração](#Teste)
+[1. Testes de Integração](#teste-de-integração)
 
 
 
