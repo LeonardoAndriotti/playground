@@ -4,6 +4,8 @@ Projeto para implementação de novas tecnologias e ferramentas, escrito em Java
 
 [1.ArchUnit](#archunit)
 
+[1.Testes de Integração](#Teste)
+
 
 
 ## ArchUnit
@@ -175,3 +177,226 @@ class PackagePredicate extends DescribedPredicate {
 
 ```
 [GITHUB](https://github.com/LeonardoAndriotti/playground/blob/master/src/test/java/br/com/playground/archunit/ArchUnitTest.java)
+
+## Testes de Integração
+
+Os testes de integração se concentram na integração entre diferentes camadas do aplicativo. Utilizando o contexto semelhante ao de produção.
+
+No entanto testes de integrações podem ser demorados, pois vão iniciar o contexto do Spring e banco de dados para testar aplicação. Por esse motivo vamos separar nossos testes por profiles.
+
+### Configurando dependências para criar os testes: 
+
+``` maven
+
+   <dependency>
+       <groupId>org.springframework.boot</groupId>
+       <artifactId>spring-boot-starter-test</artifactId>
+       <scope>test</scope>
+       <version>2.1.6.RELEASE</version>
+   </dependency>
+   <dependency>
+       <groupId>com.h2database</groupId>
+       <artifactId>h2</artifactId>
+       <scope>test</scope>
+       <version>1.4.194</version>
+   </dependency>
+	    
+```
+
+### Configurando Banco de Dados
+
+Para executar os testes vamos utilizar um properties separado: **application-teste.properties**, nele coloque as seguintes configurações:
+
+spring.datasource.url = jdbc:h2:mem:test
+
+spring.jpa.properties.hibernate.dialect = org.hibernate.dialect.H2Dialect
+
+### Explicando as Anotações
+
+#### @SpringBootTest
+Pode ser usada quando precisamos inicializar o contâiner inteiro. A anotação funciona criando o ApplicationContext que será utilizado.
+
+#### WebEnviroment
+
+Usamos webEnviroment para atribuir para configurar o ambiente de tempo de execução. 
+
+##### Atribuições
+
+**MOCK**
+Cria um WebApplicationContextambiente de servlet simulado, se as APIs de servlet estiverem no caminho de classe, e ReactiveWebApplicationContextse o Spring WebFlux estiver no caminho de classe ou de ApplicationContext outra forma regular .
+
+**RANDOM_PORT**
+Cria um contexto de aplicativo da Web (reativo ou baseado em servlet) e define uma server.port=0 Environmentpropriedade (que geralmente aciona a escuta em uma porta aleatória). Geralmente usado em conjunto com um @LocalServerPortcampo injetado no teste.
+
+**DEFINED_PORT**
+Cria um contexto de aplicativo da Web (reativo) sem definir nenhuma server.port=0 Environmentpropriedade.
+
+**NONE**
+Cria um ApplicationContexte define SpringApplication.setWebApplicationType(WebApplicationType)como WebApplicationType.NONE.
+
+
+#### @TestPropertySource
+Pode ser utilizado para definir qual arquivo properties utilizar, aqui vamos utilizar nosso properties de teste: application-teste.properties
+
+#### @TestInstance 
+É uma anotação em nível de tipo usada para configurar o ciclo de vida das instâncias de teste para a classe de teste anotada ou a interface de teste.
+
+**LifeCycle.PER_CLASS**  nos permite pedir ao JUnit para criar apenas uma instância da classe de teste e reutilizá-la entre os testes.
+
+#### @IntegrationTest
+Está é uma anotação criada para identificar o tipo do testes, ela nada mais é que uma interface, anotada com um @Tag do Junit 5, para identificar o tipo do teste.
+
+### Criando Anotação
+
+
+``` java
+
+@Tag("IntegrationTest")
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+public @interface IntegrationTest {
+}
+
+
+```
+
+### Criando nossos testes
+
+No testes estou utilizando o MockMvc para fazer consultas e também RestTemplate, por questão de exemplos.
+
+Note que antes dos testes serem executados estou, inserindo uma configuração no banco de dados e em sequencia executa os testes.
+
+``` java
+
+@IntegrationTest
+@AutoConfigureMockMvc
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@TestPropertySource(locations = "classpath:application-teste.properties")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, classes = PlaygroundTestApplication.class)
+public class PlaygroundAPIIntegrationTest {
+
+    private static final String ISO_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+    private static final Gson GSON = new GsonBuilder().setDateFormat(ISO_DATE_FORMAT).create();
+
+    @Autowired
+    private MockMvc mvc;
+    @Autowired
+    private ObjectMapper mapper;
+    @Autowired
+    private RestTemplate restTemplate;
+    @Autowired
+    private ConfigurationRepository repository;
+
+    @BeforeEach
+    public void beforeClass() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setPlaygroundUser("teste3");
+        repository.save(configuration);
+    }
+
+    @Test
+    public void getConfigurations() throws Exception {
+        mvc.perform(get("/api/configurations")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect((ResultMatcher) jsonPath("$[0].playgroundUser", is("teste3")));
+
+    }
+
+    @Test
+    public void getConfigurationById() {
+        Map<String, String> urlParams = new HashMap<>();
+        urlParams.put("id", "1");
+
+        String result = restTemplate.exchange("http://localhost:7792/api/configuration/{id}", HttpMethod.GET, new HttpEntity(getHeaders()), String.class, urlParams).getBody();
+        Configuration configuration = GSON.fromJson(result, Configuration.class);
+
+        assertEquals("teste3", configuration.getPlaygroundUser());
+
+    }
+
+    @Test
+    public void saveConfiguration() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.setPlaygroundUser("Integration Test");
+
+        String json = mapper.writeValueAsString(configuration);
+
+        mvc.perform(post("/api/save")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json)
+                .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.playgroundUser", is("Integration Test")));
+    }
+
+    private HttpHeaders getHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        headers.set("oi", "47.");
+        headers.set("accept-language", "pt");
+        return headers;
+    }
+}
+
+
+```
+
+### Configurando profiles de testes
+
+* Crie um novo profile
+
+``` maven
+
+        <profile>
+            <id>AllTests</id>
+            <properties>
+                <excludeTags>none</excludeTags>
+            </properties>
+        </profile>
+
+
+```
+
+* Em seguida o pluguin do maven surefire 
+
+
+``` maven
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.22.1</version>
+				<configuration>
+					<properties>
+						<excludeTags>${excludeTags}</excludeTags>
+					</properties>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.junit.platform</groupId>
+						<artifactId>junit-platform-surefire-provider</artifactId>
+						<version>1.3.2</version>
+					</dependency>
+					<dependency>
+						<groupId>org.junit.jupiter</groupId>
+						<artifactId>junit-jupiter-engine</artifactId>
+						<version>5.5.2</version>
+					</dependency>
+				</dependencies>
+			</plugin>
+
+```
+
+* E no properties do pom 
+
+``` maven
+
+<excludeTags>IntegrationTest</excludeTags>
+
+```
+
+Com isso seus testes de integração só vão rodar quando executar o clean install utilizando -PAllTests
